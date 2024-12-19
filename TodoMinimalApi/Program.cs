@@ -1,7 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
 using TodoMinimalApi.Data;
+using TodoMinimalApi.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,27 +44,27 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-var summaries = new[]
+app.MapPost("/api/v1/todos", [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)] async
+    (Todo todo, TodoDbContext dbContext, ClaimsPrincipal user) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    if (userId == null) return Results.Unauthorized();
 
-app.MapGet("/weatherforecast", () =>
+    todo.UserId = Guid.Parse(userId);
+    dbContext.Todos.Add(todo);
+    await dbContext.SaveChangesAsync();
+    return Results.Created($"/api/todos/{todo.Id}", todo);
+});
+
+app.MapGet("/api/v1/todos", [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)] async
+    (TodoDbContext dbContext, ClaimsPrincipal user) =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    if (userId == null) return Results.Unauthorized();
+
+    var todos = await dbContext.Todos.Where(t => t.UserId == Guid.Parse(userId)).ToListAsync();
+    return Results.Ok(todos);
 });
 
 app.Run();
 
-internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
