@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using TodoMinimalApi.Models;
+using TodoMinimalApi.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
