@@ -4,8 +4,6 @@ using System.Security.Claims;
 using System.Text;
 using TodoMinimalApi.Data;
 using TodoMinimalApi.Models;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,27 +58,65 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapPost("/api/v1/todos", [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)] async
-    (Todo todo, TodoDbContext dbContext, ClaimsPrincipal user) =>
+app.MapPost("/api/v1/todos", async (Todo todo, TodoDbContext dbContext, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     if (userId == null) return Results.Unauthorized();
 
-    todo.UserId = Guid.Parse(userId);
+    todo.UserId = int.Parse(userId);
     dbContext.Todos.Add(todo);
     await dbContext.SaveChangesAsync();
     return Results.Created($"/api/todos/{todo.Id}", todo);
-});
+}).RequireAuthorization();
 
-app.MapGet("/api/v1/todos", [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)] async
-    (TodoDbContext dbContext, ClaimsPrincipal user) =>
+app.MapGet("/api/v1/todos", async (TodoDbContext dbContext, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     if (userId == null) return Results.Unauthorized();
 
-    var todos = await dbContext.Todos.Where(t => t.UserId == Guid.Parse(userId)).ToListAsync();
+    var todos = await dbContext.Todos.Where(t => t.UserId == int.Parse(userId)).ToListAsync();
     return Results.Ok(todos);
-});
+}).RequireAuthorization();
+
+app.MapGet("/api/v1/todos/{id}", async (int id, TodoDbContext dbContext, ClaimsPrincipal user) =>
+{
+    var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    if (userId == null) return Results.Unauthorized();
+
+    var todo = await dbContext.Todos.FirstOrDefaultAsync(t => t.Id == id && t.UserId == int.Parse(userId));
+    if (todo == null) return Results.NotFound();
+
+    return Results.Ok(todo);
+}).RequireAuthorization();
+
+app.MapPut("/api/v1/todos/{id}", async (int id, Todo updatedTodo, TodoDbContext dbContext, ClaimsPrincipal user) =>
+{
+    var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    if (userId == null) return Results.Unauthorized();
+
+    var todo = await dbContext.Todos.FirstOrDefaultAsync(t => t.Id == id && t.UserId == int.Parse(userId));
+    if (todo == null) return Results.NotFound();
+
+    todo.Title = updatedTodo.Title;
+    todo.Description = updatedTodo.Description;
+    todo.CompletedAt = updatedTodo.CompletedAt;
+
+    await dbContext.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization();
+
+app.MapDelete("/api/v1/todos/{id}", async (int id, TodoDbContext dbContext, ClaimsPrincipal user) =>
+{
+    var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    if (userId == null) return Results.Unauthorized();
+
+    var todo = await dbContext.Todos.FirstOrDefaultAsync(t => t.Id == id && t.UserId == int.Parse(userId));
+    if (todo == null) return Results.NotFound();
+
+    dbContext.Todos.Remove(todo);
+    await dbContext.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization();
 
 app.Run();
 
