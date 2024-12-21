@@ -31,6 +31,14 @@ builder.Services.AddAuthentication("Bearer")
         };
     });
 
+// Adicione o serviço de autorização
+builder.Services.AddAuthorization();
+
+// Swagger
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 // Add services to the container.
 
 var app = builder.Build();
@@ -43,6 +51,14 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Check Swagger on dev
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.MapPost("/api/v1/todos", [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)] async
     (Todo todo, TodoDbContext dbContext, ClaimsPrincipal user) =>
