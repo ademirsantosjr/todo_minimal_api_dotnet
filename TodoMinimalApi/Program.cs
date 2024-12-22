@@ -1,3 +1,4 @@
+using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -5,6 +6,7 @@ using System.Security.Claims;
 using System.Text;
 using TodoMinimalApi.Data;
 using TodoMinimalApi.Models;
+using TodoMinimalApi.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,6 +67,11 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// Validation
+
+builder.Services.AddControllers().AddFluentValidation(fv =>
+    fv.RegisterValidatorsFromAssemblyContaining<TodoValidator>());
+
 
 // Add services to the container.
 
@@ -91,6 +98,13 @@ app.MapPost("/api/v1/todos", async (Todo todo, TodoDbContext dbContext, ClaimsPr
 {
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     if (userId == null) return Results.Unauthorized();
+
+    var validator = new TodoValidator();
+    var validationResult = validator.Validate(todo);
+    if (!validationResult.IsValid)
+    {
+        return Results.BadRequest(validationResult.Errors);
+    }
 
     todo.UserId = int.Parse(userId);
     dbContext.Todos.Add(todo);
