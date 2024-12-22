@@ -23,7 +23,9 @@ namespace TodoMinimalApi.Mappings
                 Id = todo.Id,
                 Title = todo.Title,
                 Description = todo.Description,
-                CompletedAt = todo.CompletedAt
+                CreatedAt = todo.CreatedAt,
+                CompletedAt = todo.CompletedAt,
+                UserId = todo.UserId
             };
         }
 

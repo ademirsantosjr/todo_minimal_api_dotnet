@@ -9,6 +9,7 @@ using TodoMinimalApi.Data;
 using TodoMinimalApi.DTOs;
 using TodoMinimalApi.Mappings;
 using TodoMinimalApi.Models;
+using TodoMinimalApi.Services;
 using TodoMinimalApi.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -75,6 +76,8 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddControllers().AddFluentValidation(fv =>
     fv.RegisterValidatorsFromAssemblyContaining<TodoValidator>());
 
+// Register services
+builder.Services.AddScoped<ITodoService, TodoService>();
 
 // Add services to the container.
 
@@ -97,7 +100,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapPost("/api/v1/todos", async (TodoDto todoDto, TodoDbContext dbContext, ClaimsPrincipal user) =>
+app.MapPost("/api/v1/todos", async (TodoDto todoDto, ITodoService todoService, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     if (userId == null) return Results.Unauthorized();
@@ -109,63 +112,48 @@ app.MapPost("/api/v1/todos", async (TodoDto todoDto, TodoDbContext dbContext, Cl
         return Results.BadRequest(validationResult.Errors);
     }
 
-    var todo = todoDto.ToModel(int.Parse(userId));
-    dbContext.Todos.Add(todo);
-    await dbContext.SaveChangesAsync();
-    return Results.Created($"/api/todos/{todo.Id}", todo.ToDto());
+    var todoViewDto = await todoService.CreateTodoAsync(int.Parse(userId), todoDto);
+    return Results.Created($"/api/todos/{todoViewDto.Id}", todoViewDto);
 }).RequireAuthorization();
 
-app.MapGet("/api/v1/todos", async (TodoDbContext dbContext, ClaimsPrincipal user) =>
+app.MapGet("/api/v1/todos", async (ITodoService todoService, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     if (userId == null) return Results.Unauthorized();
 
-    var todos = await dbContext.Todos
-        .Where(t => t.UserId == int.Parse(userId))
-        .ToListAsync();
+    var todosViewDtoList = await todoService.GetUserTodosAsync(int.Parse(userId));
     
-    var todoDtos = todos.Select(t => t.ToViewDto()).ToList();
-    return Results.Ok(todoDtos);
+    return Results.Ok(todosViewDtoList);
 }).RequireAuthorization();
 
-app.MapGet("/api/v1/todos/{id}", async (int id, TodoDbContext dbContext, ClaimsPrincipal user) =>
+app.MapGet("/api/v1/todos/{id}", async (int id, ITodoService todoService, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     if (userId == null) return Results.Unauthorized();
 
-    var todo = await dbContext.Todos.FirstOrDefaultAsync(t => t.Id == id && t.UserId == int.Parse(userId));
-    if (todo == null) return Results.NotFound();
+    var todoViewDto = await todoService.GetTodoByIdAsync(int.Parse(userId), id);
+    if (todoViewDto == null) return Results.NotFound();
 
-    return Results.Ok(todo.ToViewDto());
+    return Results.Ok(todoViewDto);
 }).RequireAuthorization();
 
-app.MapPut("/api/v1/todos/{id}", async (int id, TodoDto updatedTodoDto, TodoDbContext dbContext, ClaimsPrincipal user) =>
+app.MapPut("/api/v1/todos/{id}", async (int id, TodoDto updatedTodoDto, ITodoService todoService, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     if (userId == null) return Results.Unauthorized();
 
-    var todo = await dbContext.Todos.FirstOrDefaultAsync(t => t.Id == id && t.UserId == int.Parse(userId));
-    if (todo == null) return Results.NotFound();
+    var result = await todoService.UpdateTodoAsync(int.Parse(userId), id, updatedTodoDto);
 
-    todo.Title = updatedTodoDto.Title;
-    todo.Description = updatedTodoDto.Description;
-    todo.CompletedAt = updatedTodoDto.CompletedAt;
-
-    await dbContext.SaveChangesAsync();
-    return Results.NoContent();
+    return result ? Results.NoContent() : Results.NotFound();
 }).RequireAuthorization();
 
-app.MapDelete("/api/v1/todos/{id}", async (int id, TodoDbContext dbContext, ClaimsPrincipal user) =>
+app.MapDelete("/api/v1/todos/{id}", async (int id, ITodoService todoService, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     if (userId == null) return Results.Unauthorized();
 
-    var todo = await dbContext.Todos.FirstOrDefaultAsync(t => t.Id == id && t.UserId == int.Parse(userId));
-    if (todo == null) return Results.NotFound();
-
-    dbContext.Todos.Remove(todo);
-    await dbContext.SaveChangesAsync();
-    return Results.NoContent();
+    var result = await todoService.DeleteTodoAsync(int.Parse(userId), id);
+    return result ? Results.NoContent() : Results.NotFound();
 }).RequireAuthorization();
 
 app.MapPost("/api/v1/auth/login", (UserLogin userLogin, TodoDbContext dbContext) =>
