@@ -1,5 +1,6 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -84,6 +85,29 @@ builder.Services.AddScoped<ITodoService, TodoService>();
 
 var app = builder.Build();
 
+// Rodar migrations e criar usuário admin
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
+    dbContext.Database.Migrate();
+
+    // Adicionar usuário administrador, se não existir
+    var adminEmail = "admin@todo.com";
+    if (!dbContext.Users.Any(u => u.Email == adminEmail))
+    {
+        var passwordHasher = new PasswordHasher<User>();
+        var admin = new User
+        {
+            Name = "Admin",
+            Email = adminEmail,
+            PasswordHash = "senha123"
+        };
+
+        dbContext.Users.Add(admin);
+        dbContext.SaveChanges();
+    }
+}
+
 // Configure the HTTP request pipeline.
 
 app.UseHttpsRedirection();
@@ -95,11 +119,15 @@ app.UseAuthorization();
 
 // Check Swagger on dev
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+//if (app.Environment.IsDevelopment())
+//{
+//    app.UseSwagger();
+//    app.UseSwaggerUI();
+//}
+
+// Swagger
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.MapPost("/api/v1/todos", async (TodoDto todoDto, ITodoService todoService, ClaimsPrincipal user) =>
 {
