@@ -7,7 +7,6 @@ using System.Security.Claims;
 using System.Text;
 using TodoMinimalApi.Data;
 using TodoMinimalApi.DTOs;
-using TodoMinimalApi.Mappings;
 using TodoMinimalApi.Models;
 using TodoMinimalApi.Services;
 using TodoMinimalApi.Validators;
@@ -15,12 +14,14 @@ using TodoMinimalApi.Validators;
 var builder = WebApplication.CreateBuilder(args);
 
 // DB
+var connectionString = builder.Configuration["ConnectionStrings__Postgres"]
+                       ?? builder.Configuration.GetConnectionString("Postgres");
 
 builder.Services.AddDbContext<TodoDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
+    options.UseNpgsql(connectionString));
 
 // JWT
-
+var secretKey = builder.Configuration["JwtSettings:Key"];
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer(options =>
     {
@@ -32,7 +33,7 @@ builder.Services.AddAuthentication("Bearer")
             ValidateIssuerSigningKey = true,
             ValidIssuer = "TodoMinimalApi",
             ValidAudience = "TodoMinimalApi",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("@TodoMinimalApi#1d&mv&lle1d&mn0lle"))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
         };
     });
 
@@ -170,7 +171,7 @@ app.MapPost("/api/v1/auth/login", (UserLogin userLogin, TodoDbContext dbContext)
         new Claim(ClaimTypes.Email, user.Email)
     };
 
-    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("@TodoMinimalApi#1d&mv&lle1d&mn0lle"));
+    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
     var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
     var token = new JwtSecurityToken(
