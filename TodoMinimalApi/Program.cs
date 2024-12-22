@@ -1,3 +1,4 @@
+using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -5,6 +6,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using TodoMinimalApi.Data;
+using TodoMinimalApi.DTOs;
+using TodoMinimalApi.Mappings;
 using TodoMinimalApi.Models;
 using TodoMinimalApi.Validators;
 
@@ -94,22 +97,22 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapPost("/api/v1/todos", async (Todo todo, TodoDbContext dbContext, ClaimsPrincipal user) =>
+app.MapPost("/api/v1/todos", async (TodoDto todoDto, TodoDbContext dbContext, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     if (userId == null) return Results.Unauthorized();
 
     var validator = new TodoValidator();
-    var validationResult = validator.Validate(todo);
+    var validationResult = validator.Validate(todoDto);
     if (!validationResult.IsValid)
     {
         return Results.BadRequest(validationResult.Errors);
     }
 
-    todo.UserId = int.Parse(userId);
+    var todo = todoDto.ToModel(int.Parse(userId));
     dbContext.Todos.Add(todo);
     await dbContext.SaveChangesAsync();
-    return Results.Created($"/api/todos/{todo.Id}", todo);
+    return Results.Created($"/api/todos/{todo.Id}", todo.ToDto());
 }).RequireAuthorization();
 
 app.MapGet("/api/v1/todos", async (TodoDbContext dbContext, ClaimsPrincipal user) =>
@@ -117,8 +120,12 @@ app.MapGet("/api/v1/todos", async (TodoDbContext dbContext, ClaimsPrincipal user
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     if (userId == null) return Results.Unauthorized();
 
-    var todos = await dbContext.Todos.Where(t => t.UserId == int.Parse(userId)).ToListAsync();
-    return Results.Ok(todos);
+    var todos = await dbContext.Todos
+        .Where(t => t.UserId == int.Parse(userId))
+        .ToListAsync();
+    
+    var todoDtos = todos.Select(t => t.ToViewDto()).ToList();
+    return Results.Ok(todoDtos);
 }).RequireAuthorization();
 
 app.MapGet("/api/v1/todos/{id}", async (int id, TodoDbContext dbContext, ClaimsPrincipal user) =>
@@ -129,10 +136,10 @@ app.MapGet("/api/v1/todos/{id}", async (int id, TodoDbContext dbContext, ClaimsP
     var todo = await dbContext.Todos.FirstOrDefaultAsync(t => t.Id == id && t.UserId == int.Parse(userId));
     if (todo == null) return Results.NotFound();
 
-    return Results.Ok(todo);
+    return Results.Ok(todo.ToViewDto());
 }).RequireAuthorization();
 
-app.MapPut("/api/v1/todos/{id}", async (int id, Todo updatedTodo, TodoDbContext dbContext, ClaimsPrincipal user) =>
+app.MapPut("/api/v1/todos/{id}", async (int id, TodoDto updatedTodoDto, TodoDbContext dbContext, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     if (userId == null) return Results.Unauthorized();
@@ -140,9 +147,9 @@ app.MapPut("/api/v1/todos/{id}", async (int id, Todo updatedTodo, TodoDbContext 
     var todo = await dbContext.Todos.FirstOrDefaultAsync(t => t.Id == id && t.UserId == int.Parse(userId));
     if (todo == null) return Results.NotFound();
 
-    todo.Title = updatedTodo.Title;
-    todo.Description = updatedTodo.Description;
-    todo.CompletedAt = updatedTodo.CompletedAt;
+    todo.Title = updatedTodoDto.Title;
+    todo.Description = updatedTodoDto.Description;
+    todo.CompletedAt = updatedTodoDto.CompletedAt;
 
     await dbContext.SaveChangesAsync();
     return Results.NoContent();
@@ -190,21 +197,4 @@ app.MapPost("/api/v1/auth/login", (UserLogin userLogin, TodoDbContext dbContext)
     return Results.Ok(new { Token = tokenString });
 });
 
-app.MapGet("/seed", (TodoDbContext dbContext) =>
-{
-    var passwordHash = "senha123";
-    if (!dbContext.Users.Any())
-    {
-        dbContext.Users.Add(new User
-        {
-            Name = "Usuario",
-            Email = "user@example.com",
-            PasswordHash = passwordHash
-        });
-        dbContext.SaveChanges();
-    }
-    return Results.Ok("User seeded.");
-});
-
 app.Run();
-

@@ -1,9 +1,9 @@
 ﻿using FluentValidation;
-using TodoMinimalApi.Models;
+using TodoMinimalApi.DTOs;
 
 namespace TodoMinimalApi.Validators
 {
-    public class TodoValidator : AbstractValidator<Todo>
+    public class TodoValidator : AbstractValidator<TodoDto>
     {
         public TodoValidator()
         {
