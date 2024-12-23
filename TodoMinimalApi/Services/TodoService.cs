@@ -2,7 +2,6 @@
 using TodoMinimalApi.Data;
 using TodoMinimalApi.DTOs;
 using TodoMinimalApi.Mappings;
-using TodoMinimalApi.Models;
 
 namespace TodoMinimalApi.Services
 {

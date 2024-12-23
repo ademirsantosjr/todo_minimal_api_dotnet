@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using TodoMinimalApi.DTOs;
+﻿using TodoMinimalApi.DTOs;
 using TodoMinimalApi.Models;
 
 namespace TodoMinimalApi.Mappings
