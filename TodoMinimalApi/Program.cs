@@ -99,7 +99,7 @@ using (var scope = app.Services.CreateScope())
         {
             Name = "Admin",
             Email = adminEmail,
-            PasswordHash = "senha123"
+            PasswordHash = passwordHasher.HashPassword(null, "senha123")
         };
 
         dbContext.Users.Add(admin);
@@ -178,31 +178,36 @@ app.MapDelete("/api/v1/todos/{id}", async (int id, ITodoService todoService, Cla
 
 app.MapPost("/api/v1/auth/login", (UserLogin userLogin, TodoDbContext dbContext) =>
 {
-    var user = dbContext.Users.FirstOrDefault(u => u.Email == userLogin.Email && u.PasswordHash == userLogin.Password);
-    if (user == null)
+    var user = dbContext.Users.FirstOrDefault(u => u.Email == userLogin.Email);
+    if (user == null) return Results.Unauthorized();
+
+    var passwordHasher = new PasswordHasher<User>();
+    var result = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, userLogin.Password);
+
+    if (result == PasswordVerificationResult.Success)
     {
-        return Results.Unauthorized();
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email)
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: "TodoMinimalApi",
+            audience: "TodoMinimalApi",
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: credentials
+        );
+
+        var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+        return Results.Ok(new { Token = tokenString });
     }
 
-    var claims = new[]
-    {
-        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-        new Claim(ClaimTypes.Email, user.Email)
-    };
-
-    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-    var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-    var token = new JwtSecurityToken(
-        issuer: "TodoMinimalApi",
-        audience: "TodoMinimalApi",
-        claims: claims,
-        expires: DateTime.UtcNow.AddHours(1),
-        signingCredentials: credentials
-    );
-
-    var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-    return Results.Ok(new { Token = tokenString });
+    return Results.Unauthorized();
 });
 
 app.Run();
