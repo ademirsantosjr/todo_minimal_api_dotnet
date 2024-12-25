@@ -41,7 +41,6 @@ builder.Services.AddAuthentication("Bearer")
 builder.Services.AddAuthorization();
 
 // Swagger
-
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -73,7 +72,6 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // Validation
-
 builder.Services.AddControllers().AddFluentValidation(fv =>
     fv.RegisterValidatorsFromAssemblyContaining<TodoValidator>());
 
@@ -81,7 +79,6 @@ builder.Services.AddControllers().AddFluentValidation(fv =>
 builder.Services.AddScoped<ITodoService, TodoService>();
 
 // Add services to the container.
-
 var app = builder.Build();
 
 // Rodar migrations e criar usuário admin
@@ -90,7 +87,6 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
     dbContext.Database.Migrate();
 
-    // Adicionar usuário administrador, se não existir
     var adminEmail = "admin@todo.com";
     if (!dbContext.Users.Any(u => u.Email == adminEmail))
     {
@@ -108,13 +104,14 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
-
 app.UseHttpsRedirection();
 
 // Auth
-
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Middleware
+app.UseMiddleware<TodoMinimalApi.Middleware.ExceptionHandlingMiddleware>();
 
 // Swagger
 app.UseSwagger();
@@ -157,14 +154,21 @@ app.MapGet("/api/v1/todos/{id}", async (int id, ITodoService todoService, Claims
     return Results.Ok(todoViewDto);
 }).RequireAuthorization();
 
-app.MapPut("/api/v1/todos/{id}", async (int id, TodoDto updatedTodoDto, ITodoService todoService, ClaimsPrincipal user) =>
+app.MapPut("/api/v1/todos/{id}", async (int id, TodoUpdateDto updatedTodoDto, ITodoService todoService, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     if (userId == null) return Results.Unauthorized();
 
-    var result = await todoService.UpdateTodoAsync(int.Parse(userId), id, updatedTodoDto);
+    var validator = new TodoUpdateValidator();
+    var validationResult = validator.Validate(updatedTodoDto);
+    if (!validationResult.IsValid)
+    {
+        return Results.BadRequest(validationResult.Errors);
+    }
 
-    return result ? Results.NoContent() : Results.NotFound();
+    await todoService.UpdateTodoAsync(int.Parse(userId), id, updatedTodoDto);
+
+    return Results.NoContent();
 }).RequireAuthorization();
 
 app.MapDelete("/api/v1/todos/{id}", async (int id, ITodoService todoService, ClaimsPrincipal user) =>

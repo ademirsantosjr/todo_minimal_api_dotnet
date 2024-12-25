@@ -10,8 +10,7 @@ namespace TodoMinimalApi.Mappings
             return new TodoDto
             {
                 Title = todo.Title,
-                Description = todo.Description,
-                CompletedAt = todo.CompletedAt
+                Description = todo.Description
             };
         }
 
@@ -34,7 +33,6 @@ namespace TodoMinimalApi.Mappings
             {
                 Title = todoDto.Title,
                 Description = todoDto.Description,
-                CompletedAt = todoDto.CompletedAt,
                 UserId = userId
             };
         }
