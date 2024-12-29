@@ -2,7 +2,7 @@
 using TodoMinimalApi.Data;
 using TodoMinimalApi.Exceptions;
 
-namespace TodoMinimalApi.Services.User
+namespace TodoMinimalApi.Services.UserService
 {
     public class UserService : IUserService
     {

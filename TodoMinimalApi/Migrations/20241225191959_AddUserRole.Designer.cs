@@ -55,7 +55,7 @@ namespace TodoMinimalApi.Migrations
                     b.ToTable("Todos");
                 });
 
-            modelBuilder.Entity("TodoMinimalApi.Models.User", b =>
+            modelBuilder.Entity("TodoMinimalApi.Models.UserService", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
