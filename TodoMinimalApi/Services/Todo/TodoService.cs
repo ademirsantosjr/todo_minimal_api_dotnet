@@ -4,7 +4,7 @@ using TodoMinimalApi.DTOs;
 using TodoMinimalApi.Exceptions;
 using TodoMinimalApi.Mappings;
 
-namespace TodoMinimalApi.Services
+namespace TodoMinimalApi.Services.Todo
 {
     public class TodoService : ITodoService
     {
