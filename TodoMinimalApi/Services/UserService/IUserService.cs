@@ -1,4 +1,4 @@
-﻿namespace TodoMinimalApi.Services.User
+﻿namespace TodoMinimalApi.Services.UserService
 {
     public interface IUserService
     {

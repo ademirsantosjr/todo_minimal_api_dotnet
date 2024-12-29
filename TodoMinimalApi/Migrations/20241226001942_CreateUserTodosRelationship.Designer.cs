@@ -86,7 +86,7 @@ namespace TodoMinimalApi.Migrations
                     b.ToTable("Todos");
                 });
 
-            modelBuilder.Entity("TodoMinimalApi.Models.User", b =>
+            modelBuilder.Entity("TodoMinimalApi.Models.UserService", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -118,16 +118,16 @@ namespace TodoMinimalApi.Migrations
 
             modelBuilder.Entity("TodoMinimalApi.Models.Todo", b =>
                 {
-                    b.HasOne("TodoMinimalApi.Models.User", "User")
+                    b.HasOne("TodoMinimalApi.Models.UserService", "UserService")
                         .WithMany("Todos")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("User");
+                    b.Navigation("UserService");
                 });
 
-            modelBuilder.Entity("TodoMinimalApi.Models.User", b =>
+            modelBuilder.Entity("TodoMinimalApi.Models.UserService", b =>
                 {
                     b.HasOne("TodoMinimalApi.Models.Role", "Role")
                         .WithMany("Users")
@@ -143,7 +143,7 @@ namespace TodoMinimalApi.Migrations
                     b.Navigation("Users");
                 });
 
-            modelBuilder.Entity("TodoMinimalApi.Models.User", b =>
+            modelBuilder.Entity("TodoMinimalApi.Models.UserService", b =>
                 {
                     b.Navigation("Todos");
                 });
