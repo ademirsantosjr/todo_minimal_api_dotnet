@@ -1,6 +1,6 @@
 ﻿using TodoMinimalApi.DTOs;
 
-namespace TodoMinimalApi.Services
+namespace TodoMinimalApi.Services.Todo
 {
     public interface ITodoService
     {

@@ -1,9 +1,6 @@
 ﻿namespace TodoMinimalApi.Exceptions
 {
-    public class TodoNotFoundException : Exception
+    public class TodoNotFoundException(string message) : Exception(message)
     {
-        public TodoNotFoundException(string message) : base(message)
-        {
-        }
     }
 }

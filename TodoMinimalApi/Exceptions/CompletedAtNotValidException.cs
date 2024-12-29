@@ -1,9 +1,6 @@
 ﻿namespace TodoMinimalApi.Exceptions
 {
-    public class CompletedAtNotValidException : Exception
+    public class CompletedAtNotValidException(string message) : Exception(message)
     {
-        public CompletedAtNotValidException(string message) : base(message)
-        {
-        }
     }
 }

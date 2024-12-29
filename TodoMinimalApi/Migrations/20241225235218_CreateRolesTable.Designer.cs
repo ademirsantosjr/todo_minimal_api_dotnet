@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using TodoMinimalApi.Data;
@@ -11,9 +12,11 @@ using TodoMinimalApi.Data;
 namespace TodoMinimalApi.Migrations
 {
     [DbContext(typeof(TodoDbContext))]
-    partial class TodoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241225235218_CreateRolesTable")]
+    partial class CreateRolesTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -47,7 +50,7 @@ namespace TodoMinimalApi.Migrations
                         new
                         {
                             Id = 2,
-                            Name = "USER"
+                            Name = "TECHNICIAN"
                         });
                 });
 
@@ -77,8 +80,6 @@ namespace TodoMinimalApi.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("Todos");
                 });
@@ -113,17 +114,6 @@ namespace TodoMinimalApi.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("TodoMinimalApi.Models.Todo", b =>
-                {
-                    b.HasOne("TodoMinimalApi.Models.User", "User")
-                        .WithMany("Todos")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("TodoMinimalApi.Models.User", b =>
                 {
                     b.HasOne("TodoMinimalApi.Models.Role", "Role")
@@ -138,11 +128,6 @@ namespace TodoMinimalApi.Migrations
             modelBuilder.Entity("TodoMinimalApi.Models.Role", b =>
                 {
                     b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("TodoMinimalApi.Models.User", b =>
-                {
-                    b.Navigation("Todos");
                 });
 #pragma warning restore 612, 618
         }

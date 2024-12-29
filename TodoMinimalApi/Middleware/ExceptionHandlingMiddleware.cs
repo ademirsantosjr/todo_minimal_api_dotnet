@@ -23,7 +23,27 @@ namespace TodoMinimalApi.Middleware
                 context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                 await context.Response.WriteAsJsonAsync(new { message = ex.Message });
             }
+            catch (UserNotFoundException ex)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+            }
+            catch (RoleNotFoundException ex)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+            }
             catch (CompletedAtNotValidException ex)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+            }
+            catch (AppAlreadyConfiguredException ex)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+            }
+            catch (UserAlreadyExistsException ex)
             {
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 await context.Response.WriteAsJsonAsync(new { message = ex.Message });

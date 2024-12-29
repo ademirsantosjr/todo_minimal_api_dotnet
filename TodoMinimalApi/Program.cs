@@ -2,13 +2,18 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using TodoMinimalApi.Data;
 using TodoMinimalApi.DTOs;
 using TodoMinimalApi.Models;
-using TodoMinimalApi.Services;
+using TodoMinimalApi.Services.App;
+using TodoMinimalApi.Services.Auth;
+using TodoMinimalApi.Services.Todo;
+using TodoMinimalApi.Services.User;
+using TodoMinimalApi.Swagger;
 using TodoMinimalApi.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -37,8 +42,10 @@ builder.Services.AddAuthentication("Bearer")
         };
     });
 
-// Adicione o serviço de autorização
-builder.Services.AddAuthorization();
+// Adiciona o serviço de autorização
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("RequireAdmin", policy => policy.RequireRole("ADMIN"))
+    .AddPolicy("RequireUser", policy => policy.RequireRole("USER"));
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -50,25 +57,34 @@ builder.Services.AddSwaggerGen(options =>
     {
         Description = "Autorização JWT usando o esquema Bearer (Exemplo: 'Bearer 12345abcdef')",
         Name = "Authorization",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
         Scheme = "Bearer"
     });
 
-    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            new OpenApiSecurityScheme
             {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                Reference = new OpenApiReference
                 {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
                 }
             },
             new string[] { }
         }
     });
+
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "TODO Minimal API",
+        Version = "v1",
+        Description = "API para gerenciar tarefas com autenticação e recursos administrativos."
+    });
+
+    options.DocumentFilter<TagDescriptionsFilter>();
 });
 
 // Validation
@@ -77,31 +93,12 @@ builder.Services.AddControllers().AddFluentValidation(fv =>
 
 // Register services
 builder.Services.AddScoped<ITodoService, TodoService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAppService, AppService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 // Add services to the container.
 var app = builder.Build();
-
-// Rodar migrations e criar usuário admin
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
-    dbContext.Database.Migrate();
-
-    var adminEmail = "admin@todo.com";
-    if (!dbContext.Users.Any(u => u.Email == adminEmail))
-    {
-        var passwordHasher = new PasswordHasher<User>();
-        var admin = new User
-        {
-            Name = "Admin",
-            Email = adminEmail,
-            PasswordHash = passwordHasher.HashPassword(null, "senha123")
-        };
-
-        dbContext.Users.Add(admin);
-        dbContext.SaveChanges();
-    }
-}
 
 // Configure the HTTP request pipeline.
 app.UseHttpsRedirection();
@@ -131,7 +128,10 @@ app.MapPost("/api/v1/todos", async (TodoDto todoDto, ITodoService todoService, C
 
     var todoViewDto = await todoService.CreateTodoAsync(int.Parse(userId), todoDto);
     return Results.Created($"/api/todos/{todoViewDto.Id}", todoViewDto);
-}).RequireAuthorization();
+})
+.RequireAuthorization("RequireUser")
+.WithTags("TODOS")
+.WithSummary("Cria uma nova tarefa.");
 
 app.MapGet("/api/v1/todos", async (ITodoService todoService, ClaimsPrincipal user) =>
 {
@@ -141,7 +141,10 @@ app.MapGet("/api/v1/todos", async (ITodoService todoService, ClaimsPrincipal use
     var todosViewDtoList = await todoService.GetUserTodosAsync(int.Parse(userId));
     
     return Results.Ok(todosViewDtoList);
-}).RequireAuthorization();
+})
+.RequireAuthorization("RequireUser")
+.WithTags("TODOS")
+.WithSummary("Lista todas as tarefas.");
 
 app.MapGet("/api/v1/todos/{id}", async (int id, ITodoService todoService, ClaimsPrincipal user) =>
 {
@@ -152,7 +155,10 @@ app.MapGet("/api/v1/todos/{id}", async (int id, ITodoService todoService, Claims
     if (todoViewDto == null) return Results.NotFound();
 
     return Results.Ok(todoViewDto);
-}).RequireAuthorization();
+})
+.RequireAuthorization("RequireUser")
+.WithTags("TODOS")
+.WithSummary("Retorna uma determinada tarefa.");
 
 app.MapPut("/api/v1/todos/{id}", async (int id, TodoUpdateDto updatedTodoDto, ITodoService todoService, ClaimsPrincipal user) =>
 {
@@ -169,7 +175,10 @@ app.MapPut("/api/v1/todos/{id}", async (int id, TodoUpdateDto updatedTodoDto, IT
     await todoService.UpdateTodoAsync(int.Parse(userId), id, updatedTodoDto);
 
     return Results.NoContent();
-}).RequireAuthorization();
+})
+.RequireAuthorization("RequireUser")
+.WithTags("TODOS")
+.WithSummary("Altera uma determinada tarefa.");
 
 app.MapDelete("/api/v1/todos/{id}", async (int id, ITodoService todoService, ClaimsPrincipal user) =>
 {
@@ -178,22 +187,52 @@ app.MapDelete("/api/v1/todos/{id}", async (int id, ITodoService todoService, Cla
 
     var result = await todoService.DeleteTodoAsync(int.Parse(userId), id);
     return result ? Results.NoContent() : Results.NotFound();
-}).RequireAuthorization();
+})
+.RequireAuthorization("RequireUser")
+.WithTags("TODOS")
+.WithSummary("Remove uma determinada tarefa.");
+
+app.MapPost("/api/v1/users/{id}/approve", async (int id, IUserService userService) =>
+{
+    await userService.ApprovePenddingUserById(id);
+
+    return Results.Ok("Usuário aprovado com sucesso!");
+})
+.RequireAuthorization("RequireAdmin")
+.WithTags("Admin")
+.WithSummary("Aprova um usuário previamente registrado."); ;
+
+app.MapPost("/api/v1/auth/register", async (UserRegistrationDto userRegistrationDto, IAuthService userService) =>
+{
+    var user = await userService.RegisterUserAsync(userRegistrationDto);
+
+    return Results.Created($"/api/v1/auth/register/{user.Id}", new { user.Id, user.Name, user.Email });
+})
+.WithTags("Auth")
+.WithSummary("Registrar-se no sistema")
+.WithDescription("""
+    Permite registrar um novo usuário no sistema.
+    Após o registro, o usuário administrador deve aprovar do cadastro do novo usuário.
+    """);
 
 app.MapPost("/api/v1/auth/login", (UserLogin userLogin, TodoDbContext dbContext) =>
 {
-    var user = dbContext.Users.FirstOrDefault(u => u.Email == userLogin.Email);
+    var user = dbContext.Users
+        .Include(u => u.Role)
+        .FirstOrDefault(u => u.Email == userLogin.Email);
+
     if (user == null) return Results.Unauthorized();
 
     var passwordHasher = new PasswordHasher<User>();
     var result = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, userLogin.Password);
-
+    
     if (result == PasswordVerificationResult.Success)
     {
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email)
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Role, user.Role.Name)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
@@ -212,6 +251,17 @@ app.MapPost("/api/v1/auth/login", (UserLogin userLogin, TodoDbContext dbContext)
     }
 
     return Results.Unauthorized();
-});
+})
+.WithTags("Auth")
+.WithSummary("Autenticar-se informando as credenciais de login.");
+
+app.MapPost("/api/v1/setup", async (UserRegistrationDto userRegistrationDto, IAppService appService) =>
+{
+    await appService.SetupAdmin(userRegistrationDto);
+
+    return Results.Ok("Administrador criado com sucesso!");
+})
+.WithTags("App Setup")
+.WithSummary("Criar um usuário adminitrador.");
 
 app.Run();
