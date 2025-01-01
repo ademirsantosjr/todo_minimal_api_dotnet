@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -14,6 +14,9 @@ using TodoMinimalApi.Services.Todo;
 using TodoMinimalApi.Services.UserService;
 using TodoMinimalApi.Swagger;
 using TodoMinimalApi.Validators;
+
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+Console.OutputEncoding = Encoding.UTF8;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,7 +56,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
-        Description = "Autoriza��o JWT usando o esquema Bearer (Exemplo: 'Bearer 12345abcdef')",
+        Description = "Autorização JWT usando o esquema Bearer (Exemplo: 'Bearer 12345abcdef')",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
@@ -79,7 +82,9 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "TODO Minimal API",
         Version = "v1",
-        Description = "API para gerenciar tarefas com autentica��o e recursos administrativos."
+        Description = """
+            API para gerenciar tarefas com autenticação e recursos administrativos.
+            """
     });
 
     options.DocumentFilter<TagDescriptionsFilter>();
@@ -112,12 +117,24 @@ app.UseMiddleware<TodoMinimalApi.Middleware.ExceptionHandlingMiddleware>();
 // Swagger
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseSwaggerUI(options =>
+{
+    options.HeadContent = @"
+        <meta charset='UTF-8'>
+    ";
+});
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["Content-Type"] = "application/json; charset=utf-8";
+    await next();
+});
 
 // Map Groups
-var todos = app.MapGroup("/api/v1/todos").RequireAuthorization("RequireUser").WithTags("TODOS");
+var todos = app.MapGroup("/api/v1/todos").RequireAuthorization("RequireUser").WithTags("TODOs");
 var users = app.MapGroup("/api/v1/users").RequireAuthorization("RequireAdmin").WithTags("Admin");
 var auth = app.MapGroup("/api/v1/auth").WithTags("Auth");
-var setup = app.MapGroup("/api/v1/setup").WithTags("App Setup");
+var setup = app.MapGroup("/api/v1/setup").WithTags("Setup");
 
 todos.MapPost("/", CreateTodo).WithSummary("Criar uma nova tarefa.");
 todos.MapGet("/", GetAllTodos).WithSummary("Listar todas as tarefas.");
@@ -125,18 +142,18 @@ todos.MapGet("/{id}", GetTodoById).WithSummary("Retornar uma determinada tarefa.
 todos.MapPut("/{id}", UpdateTodoById).WithSummary("Alterar uma determinada tarefa.");
 todos.MapDelete("/{id}", DeleteTodoById).WithSummary("Remover uma determinada tarefa.");
 
-users.MapPost("/{id}/approve", ApproveUserById).WithSummary("Aprovar um usu�rio previamente registrado.");
+users.MapPost("/{id}/approve", ApproveUserById).WithSummary("Aprovar um usuário previamente registrado.");
 
 auth.MapPost("/register", RegisterUser)
-    .WithSummary("Registrar um usu�rio.")
+    .WithSummary("Registrar um usuário.")
     .WithDescription("""
-        Permite registrar um novo usu�rio no sistema.
-        Ap�s o registro, o usu�rio administrador deve aprovar do cadastro do novo usu�rio.
+        Permite registrar um novo usuário no sistema.
+        Após o registro, o usuário administrador deve aprovar do cadastro do novo usuário.
         """);
 
-auth.MapPost("/login", Login).WithSummary("Autenticar usando credenciais de login.");
+auth.MapPost("/login", Login).WithSummary("Autenticar com as credenciais de login.");
 
-setup.MapPost("/", Setup).WithSummary("Criar um usu�rio administrador.");
+setup.MapPost("/", Setup).WithSummary("Criar um usuário administrador.");
 
 app.Run();
 
@@ -209,12 +226,12 @@ static async Task<IResult> ApproveUserById(int id, IUserService userService)
 {
     await userService.ApprovePenddingUserById(id);
 
-    return TypedResults.Ok("Usu�rio aprovado com sucesso!");
+    return TypedResults.Ok("Usuário aprovado com sucesso!");
 }
 
 static async Task<IResult> RegisterUser(UserRegistrationDto userRegistrationDto, IAuthService userService)
 {
-    var user = await userService.RegisterUserAsync(userRegistrationDto);
+    var user = await userService.RegisterLoginAsync(userRegistrationDto);
 
     return TypedResults.Created($"/api/v1/auth/register/{user.Id}", new { user.Id, user.Name, user.Email });
 }
@@ -226,5 +243,5 @@ static async Task<IResult> Setup(UserRegistrationDto userRegistrationDto, IAppSe
 {
     await appService.SetupAdmin(userRegistrationDto);
 
-    return TypedResults.Ok("Usu�rio administrador criado com sucesso!");
+    return TypedResults.Ok("Usuário administrador criado com sucesso!");
 }

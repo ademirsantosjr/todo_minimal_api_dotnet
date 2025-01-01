@@ -15,7 +15,7 @@ namespace TodoMinimalApi.Migrations
                 table: "Users",
                 type: "text",
                 nullable: false,
-                defaultValue: "TECHNICIAN");
+                defaultValue: "PENDING");
         }
 
         /// <inheritdoc />

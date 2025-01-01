@@ -5,7 +5,7 @@ namespace TodoMinimalApi.Services.Auth
 {
     public interface IAuthService
     {
-        Task<UserViewDto> RegisterUserAsync(UserRegistrationDto userRegistrationDto);
+        Task<UserViewDto> RegisterLoginAsync(UserRegistrationDto userRegistrationDto);
         Task<IResult> LoginAsync(UserLogin userLogin);
     }
 }
