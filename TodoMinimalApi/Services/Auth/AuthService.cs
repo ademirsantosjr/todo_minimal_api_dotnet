@@ -25,7 +25,7 @@ namespace TodoMinimalApi.Services.Auth
             _passwordHasher = passwordHasher;
         }
 
-        public async Task<UserViewDto> RegisterUserAsync(UserRegistrationDto userRegistrationDto)
+        public async Task<UserViewDto> RegisterLoginAsync(UserRegistrationDto userRegistrationDto)
         {
             var foundUser = await _dbContext.Users.FirstOrDefaultAsync(u =>  u.Email == userRegistrationDto.Email);
             if (foundUser != null)
