@@ -1,0 +1,2 @@
+INSERT INTO public."Users" ("Id", "Name", "Email", "PasswordHash", "RoleId")
+VALUES(1, 'admin', 'admin@todo.com', 'AQAAAAIAAYagAAAAEEPZXYmXLbkKTdfhvNp6YD9q9ToGzP7Ufx8Ky1fDCEv8nqucw62JopDChCve9EE/1g==', 1);

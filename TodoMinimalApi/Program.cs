@@ -20,13 +20,11 @@ Console.OutputEncoding = Encoding.UTF8;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// DB
 var connectionString = builder.Configuration["ConnectionStrings__Postgres"]
                        ?? builder.Configuration.GetConnectionString("Postgres");
 
 builder.Services.AddDbContext<TodoDbContext>(options => options.UseNpgsql(connectionString));
 
-// JWT
 var secretKey = builder.Configuration["JwtSettings:Key"];
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer(options =>
@@ -43,12 +41,10 @@ builder.Services.AddAuthentication("Bearer")
         };
     });
 
-// Auth Policies
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("RequireAdmin", policy => policy.RequireRole("ADMIN"))
     .AddPolicy("RequireUser", policy => policy.RequireRole("USER"));
 
-// Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -90,31 +86,24 @@ builder.Services.AddSwaggerGen(options =>
     options.DocumentFilter<TagDescriptionsFilter>();
 });
 
-// Validation
 builder.Services.AddValidatorsFromAssemblyContaining<TodoValidator>();
 builder.Services.AddControllers();
 
-// Register services
 builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAppService, AppService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
-// Add services to the container.
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 app.UseHttpsRedirection();
 
-// Auth
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Middleware
 app.UseMiddleware<TodoMinimalApi.Middleware.ExceptionHandlingMiddleware>();
 
-// Swagger
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseSwaggerUI(options =>
@@ -130,8 +119,10 @@ app.Use(async (context, next) =>
     await next();
 });
 
-// Map Groups
-var todos = app.MapGroup("/api/v1/todos").RequireAuthorization("RequireUser").WithTags("TODOs");
+var todos = app.MapGroup("/api/v1/todos")
+    .RequireAuthorization(policy => policy.RequireRole("USER", "ADMIN"))
+    .WithTags("TODOs");
+
 var users = app.MapGroup("/api/v1/users").RequireAuthorization("RequireAdmin").WithTags("Admin");
 var auth = app.MapGroup("/api/v1/auth").WithTags("Auth");
 var setup = app.MapGroup("/api/v1/setup").WithTags("Setup");
@@ -144,6 +135,8 @@ todos.MapDelete("/{id}", DeleteTodoById).WithSummary("Remover uma determinada ta
 
 users.MapPost("/{id}/approve", ApproveUserById).WithSummary("Aprovar um usuário previamente registrado.");
 
+auth.MapPost("/login", Login).WithSummary("Autenticar com as credenciais de login.");
+
 auth.MapPost("/register", RegisterUser)
     .WithSummary("Registrar um usuário.")
     .WithDescription("""
@@ -151,13 +144,15 @@ auth.MapPost("/register", RegisterUser)
         Após o registro, o usuário administrador deve aprovar do cadastro do novo usuário.
         """);
 
-auth.MapPost("/login", Login).WithSummary("Autenticar com as credenciais de login.");
-
-setup.MapPost("/", Setup).WithSummary("Criar um usuário administrador.");
+setup.MapPost("/", Setup)
+    .WithSummary("Criar um usuário administrador.")
+    .WithDescription("""
+        Caso nenhum usuário administrador tenha sido criado pelo script seed.sql, 
+        este endpoint permite a criação do primeiro usuário administrador.
+        """);
 
 app.Run();
 
-// Handlers
 static async Task<IResult> CreateTodo(TodoDto todoDto, ITodoService todoService, ClaimsPrincipal user)
 {
     var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;

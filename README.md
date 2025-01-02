@@ -8,12 +8,21 @@
 
 ## Funcionalidades
 
-- **Autenticação JWT**: Somente usuários autenticados podem acessar os endpoints.
+- **Autenticação JWT**: Somente usuários autenticados podem acessar endpoints que gerenciam tarefas.
 - **CRUD de Tarefas**: Permite criar, listar, atualizar e excluir tarefas.
 - **Banco de Dados PostgreSQL**: Persistência de dados usando Entity Framework Core.
-- **Usuário Administrador Padrão**: Criado automaticamente na primeira execução.
+- **Usuário Administrador Padrão**: Criado no primeiro uso da aplicação via script de seed ou através do endpoint `/setup`.
 - **Swagger UI**: Documentação interativa para testar os endpoints.
 - **Dockerização Completa**: Facilita a execução e o deploy.
+
+---
+
+## Tecnologias Utilizadas
+
+- **.NET 8**
+- **PostgreSQL**
+- **Docker** e **Docker Compose**
+- **EF Core** para mapeamento objeto-relacional (ORM)
 
 ---
 
@@ -21,6 +30,7 @@
 
 - [Docker](https://www.docker.com/) instalado.
 - [Docker Compose](https://docs.docker.com/compose/) configurado.
+- [.NET SDK 8.0](https://dotnet.microsoft.com/pt-br/) (opcional, para execução local fora do contêiner)
 - Opcional: [Postman](https://www.postman.com/) ou outro cliente de API para testes.
 
 ---
@@ -30,7 +40,7 @@
 ### 1. Clone o Repositório
 
 ```bash
-git clone https://github.com/seuusuario/TodoMinimalApi.git
+git clone https://github.com/ademirsantosjr/todo_minimal_api_dotnet
 cd TodoMinimalApi
 ```
 
@@ -47,12 +57,12 @@ Este comando:
 - Aplica as migrations ao banco de dados.
 - Cria um usuário administrador padrão:
   - **E-mail**: `admin@todo.com`
-  - **Senha**: `senha123`
+  - **Senha**: `admin`
 
 ### 3. Acesse a Aplicação
 
 - **Swagger UI**: [`http://localhost:8080/swagger`](http://localhost:8080/swagger)
-- **API**: [`http://localhost:8080`](http://localhost:8080)
+- **API**: [`http://localhost:8080/api/v1`](http://localhost:8080/api/v1)
 
 ### 4. Banco de Dados (Opcional)
 
@@ -60,9 +70,9 @@ Você pode acessar o banco de dados PostgreSQL diretamente usando um cliente SQL
 
 - **Host**: `localhost`
 - **Porta**: `5432`
-- **Usuário**: `postgres`
-- **Senha**: `yourpassword`
-- **Banco de Dados**: `TodoDb`
+- **Usuário**: `{ver_docker_compose}`
+- **Senha**: `{ver_docker_compose}`
+- **Banco de Dados**: `todos`
 
 Ou acessar via Docker:
 
@@ -77,6 +87,9 @@ docker exec -it todo_postgres psql -U postgres -d TodoDb
 ### **Autenticação**
 - `POST /api/v1/auth/login`: Autenticar e obter o token JWT.
 
+### **Registro de novo Usuário**
+- `POST /api/v1/auth/register`: Registrar novo usuário.
+
 ### **Tarefas (Todos)**
 - `POST /api/v1/todos`: Criar uma nova tarefa.
 - `GET /api/v1/todos`: Listar todas as tarefas do usuário autenticado.
@@ -84,19 +97,26 @@ docker exec -it todo_postgres psql -U postgres -d TodoDb
 - `PUT /api/v1/todos/{id}`: Atualizar uma tarefa existente.
 - `DELETE /api/v1/todos/{id}`: Excluir uma tarefa existente.
 
+### **Configurações**
+- `POST /api/v1/setup`: Caso nenhum usuário administrador tenha sido criado pelo script seed.sql, este endpoint permite a criação do primeiro usuário administrador.
+
 ---
 
 ## Detalhes Técnicos
 
 ### Banco de Dados
 
-A aplicação usa **PostgreSQL** e é gerenciada via **Entity Framework Core**. As tabelas são criadas automaticamente através de migrations. Estrutura inicial:
+A aplicação usa **PostgreSQL** e é gerenciada via **Entity Framework Core**. As tabelas são criadas automaticamente através do script de migrations. Estrutura inicial:
 
 - **Users**:
   - `Id`: Identificador único do usuário.
   - `Name`: Nome do usuário.
   - `Email`: E-mail do usuário.
   - `PasswordHash`: Senha armazenada de forma segura.
+
+- **Roles**:
+  - `Id`: Identificador único do papel de usuário.
+  - `Name`: Nome do papel de usuário, por exemplo ADMIN.
 
 - **Todos**:
   - `Id`: Identificador único da tarefa.
@@ -106,6 +126,10 @@ A aplicação usa **PostgreSQL** e é gerenciada via **Entity Framework Core**. 
   - `CompletedAt`: Data de conclusão (opcional).
   - `UserId`: Identificador do usuário que criou a tarefa.
 
+#### Diagram de Relacionamento
+
+![Diagrama de Relacionamento](data_diagram.PNG)
+
 ### Usuário Administrador Padrão
 
 Na primeira execução, um usuário administrador é criado automaticamente:
@@ -113,7 +137,7 @@ Na primeira execução, um usuário administrador é criado automaticamente:
 - **E-mail**: `admin@todo.com`
 - **Senha**: `senha123`
 
-Este usuário pode ser usado para autenticar e testar os endpoints imediatamente.
+Este usuário pode ser usado para autenticar e testar os endpoints imediatamente. Além disso, o usuário administrador tem permissão para aprovar novos cadastros de usuários comuns.
 
 ---
 
@@ -121,12 +145,7 @@ Este usuário pode ser usado para autenticar e testar os endpoints imediatamente
 
 ### Alterar o Usuário Administrador Padrão
 
-Para personalizar o e-mail e a senha do administrador, edite o arquivo `Program.cs` nas variáveis:
-
-```csharp
-var adminEmail = "admin@todo.com";
-var adminPassword = "senha123";
-```
+Para personalizar o e-mail e a senha do administrador, edite o arquivo seed.sql localizado na raiz do projeto (mesmo diretório de docker-compose.yml). Se preferir, remova o arquivo seed.sql e, após subir os contêineres, utilize o recurso `POST /api/v1/setup` informando o nome, e-mail e a senha do usuário administrador.
 
 ### Configuração do Banco de Dados
 
@@ -135,6 +154,6 @@ As credenciais e o nome do banco podem ser ajustados no arquivo `docker-compose.
 ```yaml
 environment:
   POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: yourpassword
-  POSTGRES_DB: TodoDb
+  POSTGRES_PASSWORD: senha
+  POSTGRES_DB: db
 ```
