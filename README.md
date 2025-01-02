@@ -126,7 +126,7 @@ A aplicação usa **PostgreSQL** e é gerenciada via **Entity Framework Core**. 
   - `CompletedAt`: Data de conclusão (opcional).
   - `UserId`: Identificador do usuário que criou a tarefa.
 
-#### Diagram de Relacionamento
+#### Diagrama de Relacionamento
 
 ![Diagrama de Relacionamento](data_diagram.PNG)
 
@@ -135,7 +135,7 @@ A aplicação usa **PostgreSQL** e é gerenciada via **Entity Framework Core**. 
 Na primeira execução, um usuário administrador é criado automaticamente:
 
 - **E-mail**: `admin@todo.com`
-- **Senha**: `senha123`
+- **Senha**: `admin`
 
 Este usuário pode ser usado para autenticar e testar os endpoints imediatamente. Além disso, o usuário administrador tem permissão para aprovar novos cadastros de usuários comuns.
 
