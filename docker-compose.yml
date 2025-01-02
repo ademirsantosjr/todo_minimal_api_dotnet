@@ -25,6 +25,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./migrations.sql:/docker-entrypoint-initdb.d/migrations.sql
+      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql
 
 volumes:
   postgres_data:
