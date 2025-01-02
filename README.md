@@ -39,9 +39,15 @@
 
 ### 1. Clone o Repositório
 
+- SSH
+```bash
+git clone git@github.com:ademirsantosjr/todo_minimal_api_dotnet.git
+cd todo_minimal_api_dotnet
+```
+- HTTPS
 ```bash
 git clone https://github.com/ademirsantosjr/todo_minimal_api_dotnet
-cd TodoMinimalApi
+cd todo_minimal_api_dotnet
 ```
 
 ### 2. Suba os Contêineres
@@ -125,6 +131,8 @@ A aplicação usa **PostgreSQL** e é gerenciada via **Entity Framework Core**. 
   - `CreatedAt`: Data de criação.
   - `CompletedAt`: Data de conclusão (opcional).
   - `UserId`: Identificador do usuário que criou a tarefa.
+
+> ℹ️ Datas de criação e alteração foram mantidas em UTC para preservar a consistência dos dados em seu transporte.
 
 #### Diagrama de Relacionamento
 
