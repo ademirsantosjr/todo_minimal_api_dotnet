@@ -1,0 +1,31 @@
+services:
+  todominimalapi:
+    image: ${DOCKER_REGISTRY-}todominimalapi
+    build:
+      context: .
+      dockerfile: TodoMinimalApi/Dockerfile
+    environment:
+        - ASPNETCORE_URLS=http://+:8080
+        - ConnectionStrings__Postgres=Host=postgres;Database=todos;Username=postgres;Password=postgres
+        - TZ=America/Sao_Paulo
+    ports:
+        - "8080:8080"
+    depends_on:
+        - postgres
+
+  postgres:
+    image: postgres:latest
+    container_name: todo_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: todos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations.sql:/docker-entrypoint-initdb.d/migrations.sql
+      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql
+
+volumes:
+  postgres_data:
