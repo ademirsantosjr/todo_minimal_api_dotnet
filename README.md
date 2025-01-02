@@ -83,7 +83,7 @@ Você pode acessar o banco de dados PostgreSQL diretamente usando um cliente SQL
 Ou acessar via Docker:
 
 ```bash
-docker exec -it todo_postgres psql -U postgres -d TodoDb
+docker exec -it todo_postgres psql -U postgres -d todos
 ```
 
 ---
